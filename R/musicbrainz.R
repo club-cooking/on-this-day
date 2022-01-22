@@ -3,53 +3,70 @@ library(glue)
 library(dplyr)
 library(purrr)
 library(tidyr)
+library(readr)
+
+dir.create("data")
 
 url_root <- "https://musicbrainz.org/ws/2/"
 entity_type <- "release"
-release_date <- "2010-01-27"
 
-# base request
-request <- request(url_root) %>% 
-  req_url_path_append(entity_type) %>% 
-  req_headers(
-    Accept = "application/json"
-  ) 
+month_day <- "01-27" # pick month-day
+year_range <- 1990:2015 # pick years
+release_dates <- glue("{year_range}-{month_day}") # build date range
 
-# first search
-search <- request %>% 
-  req_url_query(
-    query = glue("date:{release_date}"), 
-    limit = 100
-    ) %>% 
-  req_perform() %>% 
-  resp_body_json() 
-
-# get no. records/pages
-n_results <- search$count
-n_pages <- ceiling(n_results / 100)
-
-# query full results set
-result <- map_dfr(seq_along(1:n_pages), function(x){
+date_releases <- map_dfr(release_dates, function(x) {
   
-  n <- x - 1
-  offset = 100 * n
+  # base request
+  request <- request(url_root) %>% 
+    req_url_path_append(entity_type) %>% 
+    req_headers(
+      Accept = "application/json"
+    ) 
   
-  result <- request %>% 
+  # first search
+  search <- request %>% 
     req_url_query(
-      query = glue("date:{release_date}"), 
-      limit = 100, offset = offset
+      query = glue("date:{x} AND country:gb"), 
+      limit = 100
     ) %>% 
-    req_throttle(rate = 30 / 60) %>% 
     req_perform() %>% 
     resp_body_json() 
   
-  result$releases %>% 
-    purrr::transpose() %>% 
-    tidyr::unchop() %>% 
-    as_tibble()
+  # get no. records/pages
+  n_results <- search$count
+  n_pages <- ceiling(n_results / 100)
+  
+  # query full results set
+  result <- map_dfr(seq_along(1:n_pages), function(y){
+    
+    n <- y - 1
+    offset = 100 * n
+    
+    result <- request %>% 
+      req_url_query(
+        query = glue("date:{x} AND country:gb"), 
+        limit = 100, offset = offset
+      ) %>% 
+      req_throttle(rate = 30 / 60) %>% 
+      req_perform() %>% 
+      resp_body_json() 
+    
+    result$releases %>% 
+      purrr::transpose() %>% 
+      tidyr::unchop() %>% 
+      as_tibble()
+  })
+  
+  # exact release date matches
+  result %>% 
+    dplyr::filter(date == x) %>% 
+    select(id, title, `artist-credit`, date, country, `label-info`)
 })
 
-# exact release date matches
-result_exact <- result %>% 
-  dplyr::filter(date == release_date) %>% 
-  select(id, title, `artist-credit`, date, country, `label-info`)
+date_releases_df <- date_releases %>% 
+  unnest(cols = `artist-credit`) %>% 
+  mutate(artist_name = map_chr(`artist-credit`, "name")) %>% 
+  select(-`label-info`, -`artist-credit`) %>% 
+  mutate(across(everything(), as.character))
+
+write_csv(date_releases_df, "data/releases.csv")
