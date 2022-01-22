@@ -14,7 +14,7 @@ month_day <- "01-27" # pick month-day
 year_range <- 1990:2015 # pick years
 release_dates <- glue("{year_range}-{month_day}") # build date range
 
-date_releases <- map_dfr(release_dates, function(x) {
+date_releases <- map_dfr(release_dates[14:16], function(x) {
   
   # base request
   request <- request(url_root) %>% 
@@ -59,14 +59,17 @@ date_releases <- map_dfr(release_dates, function(x) {
   
   # exact release date matches
   result %>% 
-    dplyr::filter(date == x) %>% 
+    dplyr::filter(date == x) %>%
     select(id, title, `artist-credit`, date, country, `label-info`)
 })
 
+# tidy up data
 date_releases_df <- date_releases %>% 
   unnest(cols = `artist-credit`) %>% 
   mutate(artist_name = map_chr(`artist-credit`, "name")) %>% 
   select(-`label-info`, -`artist-credit`) %>% 
-  mutate(across(everything(), as.character))
+  mutate(across(everything(), as.character)) %>% 
+  dplyr::filter(artist_name != "Various Artists")
 
+# export
 write_csv(date_releases_df, "data/releases.csv")
