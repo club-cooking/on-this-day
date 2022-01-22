@@ -2,10 +2,11 @@ library(httr2)
 library(glue)
 library(dplyr)
 library(purrr)
+library(tidyr)
 
 url_root <- "https://musicbrainz.org/ws/2/"
 entity_type <- "release"
-release_date <- "2012-01-27"
+release_date <- "2010-01-27"
 
 # base request
 request <- request(url_root) %>% 
@@ -49,4 +50,6 @@ result <- map_dfr(seq_along(1:n_pages), function(x){
 })
 
 # exact release date matches
-result_exact <- dplyr::filter(result, date == release_date)
+result_exact <- result %>% 
+  dplyr::filter(date == release_date) %>% 
+  select(id, title, `artist-credit`, date, country, `label-info`)
