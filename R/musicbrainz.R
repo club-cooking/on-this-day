@@ -14,7 +14,7 @@ month_day <- "01-27" # pick month-day
 year_range <- 1990:2015 # pick years
 release_dates <- glue("{year_range}-{month_day}") # build date range
 
-date_releases <- map_dfr(release_dates[14:16], function(x) {
+date_releases <- map_dfr(release_dates, function(x) {
   
   # base request
   request <- request(url_root) %>% 
@@ -26,7 +26,7 @@ date_releases <- map_dfr(release_dates[14:16], function(x) {
   # first search
   search <- request %>% 
     req_url_query(
-      query = glue("date:{x} AND country:gb"), 
+      query = glue("date:{x}"), 
       limit = 100
     ) %>% 
     req_perform() %>% 
@@ -44,7 +44,7 @@ date_releases <- map_dfr(release_dates[14:16], function(x) {
     
     result <- request %>% 
       req_url_query(
-        query = glue("date:{x} AND country:gb"), 
+        query = glue("date:{x}"), 
         limit = 100, offset = offset
       ) %>% 
       req_throttle(rate = 30 / 60) %>% 
@@ -72,4 +72,4 @@ date_releases_df <- date_releases %>%
   dplyr::filter(artist_name != "Various Artists")
 
 # export
-write_csv(date_releases_df, "data/releases.csv")
+write_csv(date_releases_df, glue("data/{month_day}-releases.csv"))
