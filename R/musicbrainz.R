@@ -10,7 +10,7 @@ dir.create("data")
 url_root <- "https://musicbrainz.org/ws/2/"
 entity_type <- "release"
 
-month_day <- "02-10" # pick month-day
+month_day <- "02-24" # pick month-day
 year_range <- 1990:2015 # pick years
 release_dates <- glue("{year_range}-{month_day}") # build date range
 
